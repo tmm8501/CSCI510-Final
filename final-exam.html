@@ -1,0 +1,367 @@
+<html>
+<head>
+    <title>CSCI-510: Assn 5 - Transformation</title>
+    
+    <!-- include vertex shaders -->
+
+    <script id="wireframe-V" type="x-shader/x-vertex">
+        #version 300 es
+
+        // Vertex Attributes
+        in vec3 aVertexPosition;
+        in vec3 aNormal;
+
+        // outputs
+        out vec3 N;
+        out vec3 L;
+        out vec3 V;
+
+        // Transforms
+        uniform mat4 modelT;
+        uniform mat4 viewT;
+        uniform mat4 projT;
+
+        // Light parameters
+        uniform vec3 ambientLight;
+        uniform vec3 lightPosition;   // in world coords
+        uniform vec3 lightColor;
+
+        // object color parameters
+        uniform vec3 baseColor;
+        uniform vec3 specHighlightColor;
+
+        // Phong parameters
+        uniform float ka;
+        uniform float kd;
+        uniform float ks;
+        uniform float ke;
+        
+        void main()
+        {
+            // All calculations will be done in camera space
+            mat4 modelView = viewT * modelT;
+            mat4 normalmatrix = transpose(inverse (modelView));
+            
+            vec3 vcam = (modelView * vec4(aVertexPosition, 1.0)).xyz;
+            vec3 lcam = (viewT * vec4(lightPosition, 1.0)).xyz;
+            vec3 ncam = (normalmatrix * vec4(aNormal, 1.0)).xyz;
+            ncam = faceforward (ncam, vcam, ncam);
+            
+            // vectors to pass on to Fragment Shader
+            N = normalize (ncam);
+            L = normalize (lcam - vcam);
+            V = -normalize (vcam);
+        
+            // transform vertex to clip space
+            gl_Position = projT * viewT * modelT * vec4 (aVertexPosition, 1.0);
+        }
+
+    </script>
+
+    <script id="sphereMap-V"  type="x-shader/x-vertex">
+        #version 300 es
+        precision mediump float;
+        // Vertex shader for phong illumination model
+        // Per vertex shading
+    
+        // Vertex Attributes
+        in vec3 aVertexPosition; // in model coords
+        in vec2 aUV;    // u-v coordinates
+    
+        // outputs
+        out vec2 theUV;  // pass uv's onto the fragment shader
+        
+        // Transforms
+        uniform mat4 modelT;
+        uniform mat4 viewT;
+        uniform mat4 projT;
+          
+        void main()
+        {
+            // pass uvs to fragment shader
+            theUV = aUV;
+    
+            // transform vertex to clip space
+            gl_Position = projT * viewT * modelT * vec4 (aVertexPosition, 1.0);
+        }
+    
+    </script>
+
+     <!-- wireframe fragment Shaders -->
+    <script id="wireframe-F" type="x-shader/x-fragment">
+        #version 300 es
+        precision mediump float;
+            
+        // calculated by vertex shader and passsed to fragment
+        in vec3 N;
+        in vec3 L;
+        in vec3 V;
+        
+        // Light parameters
+        uniform vec3 ambientLight;
+        uniform vec3 lightColor;
+
+        // object color parameters
+        uniform vec3 baseColor;
+        uniform vec3 specHighlightColor;
+
+        // Phong parameters
+        uniform float ka;
+        uniform float kd;
+        uniform float ks;
+        uniform float ke;
+
+        // Color that is the result of this shader
+        out vec4 fragColor;
+
+        void main(void) {
+            // individual components
+            vec3 R = normalize (reflect (-L, N));
+            
+            vec3 ambient = ka * ambientLight * baseColor;
+            vec3 diffuse = kd * lightColor * baseColor * max (dot(L, N), 0.0);
+            vec3 spec = ks * specHighlightColor * lightColor * pow (max(dot(R, V), 0.0), ke);
+            
+            // final color
+            fragColor = vec4 (ambient + diffuse + spec, 1.0);
+        }
+
+    </script>
+
+     <script id="sphereMap-F" type="x-shader/x-fragment">
+        #version 300 es
+
+        // Fragment shader for phong illumination model
+        // Per vertex shading
+
+        precision lowp float;
+            
+        // uvs passed in from vertex shader
+        in vec2 theUV;
+        
+        // the texture to use
+        uniform sampler2D theTexture;
+
+        // Color that is the result of this shader
+        out vec4 fragColor;
+
+        void main(void) {
+            fragColor = texture (theTexture, theUV);
+        }
+
+   </script>
+     
+     <!-- Matrix library and code for standard transformations -->
+     <script type="text/javascript" src="gl-matrix-min.js"></script>
+    
+    <!-- include the main final functions -->
+    <script type="text/javascript" src="./finalMain.js"></script>
+    
+    <!-- shape functions -->
+    <script type="text/javascript" src="./cgIShape.js"></script>
+    <script type="text/javascript" src="./myShapes-min.js"></script>
+    
+    <!-- keyboard functions -->
+    <script type="text/javascript" src="./event.js"></script>
+    
+    <!-- texture images -->
+     <img id="stars-texture" src="stars.jpg" style="display: none;"> </img>
+     <img id="deathstar-texture" src="deathstar.jpg" style="display: none;"> </img>
+     <img id="tatooine-texture" src="tatooine.jpg" style="display: none;"> </img>
+     <img id="naboo-texture" src="naboo.jpg" style="display: none;"> </img>
+     <img id="hoth-texture" src="hoth.jpg" style="display: none;"> </img>
+
+
+     <!-- keyboard functions -->
+    <script type="text/javascript">
+    
+        function gotKey (event) {
+            
+            var key = event.key;
+            
+            //  incremental rotation
+            if (key == 'a') {
+                cameraX -= 1/5;
+            }
+            
+            if (key == 'd') {
+                cameraX += 1/5;
+            }
+            
+            if (key == 'r') {
+                cameraX = 0;
+                cameraY = 0;
+                cameraZ = 0;
+                destroyed = false;
+                fire = false;
+            }
+
+            if (key == 'w') {
+                cameraY += 1;
+            }
+            
+            if (key == 's') {
+                cameraY -= 1;
+            }
+            
+            if (key == 'e') {
+                cameraZ += 1;
+            }
+
+            if (key == 'q') {
+                cameraZ -= 1;
+            }
+
+            if (key == '1') {
+                curColor = red;
+            }
+            
+            if (key == '2') {
+                curColor = blue;
+            }
+            
+            if (key == '3') {
+                curColor = green;
+            }
+
+            if (key == '4') {
+                curColor = purple;
+            }
+
+            if (key == '5') {
+                curPlanet = tatooineTexture;
+            }
+            
+            if (key == '6') {
+                curPlanet = nabooTexture;
+            }
+            
+            if (key == '7') {
+                curPlanet = hothTexture;
+            }
+
+            if (key == 'j') {
+                tieX += 1;
+            }
+            
+            if (key == 'u') {
+                tieY += 1;
+            }
+            
+            if (key == 'i') {
+                tieZ += 1;
+            }
+
+            if (key == 'l') {
+                tieX -= 1;
+            }
+            
+            if (key == 'o') {
+                tieY -= 1;
+            }
+            
+            if (key == 'k') {
+                tieZ -= 1;
+            }
+
+            if (key == ',') {
+                zRot -= 1;
+            }
+            
+            if (key == '<') {
+                zRot += 1;
+            }
+
+            if (key == '.') {
+                xRot -= 1;
+            }
+            
+            if (key == '>') {
+                xRot += 1;
+            }
+
+            if (key == 'f') {
+                fire = !fire;
+                destroyed = !fire || destroyed;
+            }
+
+            setUpCamera();
+            draw();
+        }
+        
+        </script>
+        
+  <script type="text/javascript">
+    // Call init once the webpage has loaded
+    window.onload = init;
+  </script>
+</head>
+
+<body>
+  <h1>CSCI-510: Final Exam Image</h1>
+  <table>
+      <tr>
+          <td><canvas id="webgl-canvas" width="500" height="500">
+            Your browser does not support the HTML5 canvas element.
+          </canvas></td>
+          
+          <td>
+              <h3>Controls</h3>
+              
+              <table border="1">
+              <tbody>
+              <tr>
+              <td>a</td>
+              <td>Pan camera left</td>
+              </tr>
+              <tr>
+              <td>d</td>
+              <td>Pan camera right</td>
+              </tr>
+              <td>r</td>
+              <td>Reset the scene</td>
+              </tr>
+              <tr>
+              <td>1</td>
+              <td>Red Lightsaber</td>
+              </tr>
+              <tr>
+              <td>2</td>
+              <td>Blue Lightsaber</td>
+              </tr>
+              <tr>
+              <td>3</td>
+              <td>Green Lightsaber</td>
+              </tr>
+              <tr>
+              <td>4</td>
+              <td>Purple Lightsaber</td>
+              </tr>
+              <tr>
+               <td>5</td>
+               <td>Tatooine</td>
+               </tr>
+               <tr>
+               <td>6</td>
+               <td>Naboo</td>
+               </tr>
+               <tr>
+               <td>7</td>
+               <td>Hoth</td>
+               </tr>
+               <tr>
+               <td>f</td>
+               <td>You may fire when ready</td>
+               </tr>
+              </tbody>
+              </table>
+              
+          </td>
+      </tr>
+  </table>
+  
+  
+
+</body>
+</html>
+
