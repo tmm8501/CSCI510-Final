@@ -26,15 +26,8 @@
  
   // camera movement
   var cameraX = 0;
-  var cameraY = 0;
-  var cameraZ = 0;
-  var tieX = 0;
-  var tieY = 0;
-  var tieZ = 0;
-  var xRot = 45;
-  var zRot = 90;
 
-  // what planet texture is being shown
+  // current planet texture
   let curPlanet;
 
   // lightsaber colors
@@ -48,6 +41,8 @@
 
   // is the laser on?
   let fire = false;
+
+  // is the planet destroyed?
   let destroyed = false;
 
 //
@@ -97,7 +92,7 @@ function setUpCamera() {
     
     // set up your view
     let viewMatrix = glMatrix.mat4.create();
-    glMatrix.mat4.lookAt(viewMatrix, [-5*Math.sin(cameraX), 0+cameraY, (-5*Math.cos(cameraX))+cameraZ], [0, 0, 0], [0, 1, 0]);
+    glMatrix.mat4.lookAt(viewMatrix, [-5*Math.sin(cameraX), 0, -5*Math.cos(cameraX)], [0, 0, 0], [0, 1, 0]);
     gl.uniformMatrix4fv (program.uViewT, false, viewMatrix);
 
     program = texturesProgram;
@@ -299,7 +294,6 @@ function setUpTextures(){
         gl.uniformMatrix4fv(program.uModelT, false, destroyer);
         gl.bindVertexArray(myPyramid.VAO);
         gl.drawElements(gl.TRIANGLES, myPyramid.indices.length, gl.UNSIGNED_SHORT, 0);
-
 
         // change color for black pieces
         gl.uniform3fv(program.baseColor, [0.3, 0.3, 0.3]);
